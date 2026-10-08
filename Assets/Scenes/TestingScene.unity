@@ -341,6 +341,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   level: {fileID: 11400000, guid: a03144b93bb86fa4b9bccf65f58f7f9d, type: 2}
+  rules: {fileID: 11400000, guid: 20bca3ecd5a61e9448b413f75dba9289, type: 2}
   cellSize: 1
   floorPrefab: {fileID: 0}
   wallPrefab: {fileID: 0}
@@ -375,8 +376,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   loader: {fileID: 1985265606}
-  swipeInput: {fileID: 1985265609}
-  moveSpeed: 10
+  input: {fileID: 1985265609}
+  speed: 6
   stopOnPickup: 0
 --- !u!114 &1985265609
 MonoBehaviour:
@@ -404,7 +405,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e0e182dc047fad04bba830fb92fb645c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 1985265608}
+  playerController: {fileID: 1985265608}
   showDebugUI: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

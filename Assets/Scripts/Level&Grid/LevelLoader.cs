@@ -6,9 +6,13 @@ using UnityEngine;
 public class LevelLoader : MonoBehaviour
 {
     [SerializeField] private LevelData level;
+
+    [Tooltip("Aturan wilayah yang dipakai level ini: Indonesia, Taiwan, dst.")]
+    [SerializeField] private WasteRuleSet rules;
+
     [SerializeField] private float cellSize = 1f;
 
-    [Header("Prefab (boleh dikosongkan saat greybox)")]
+    [Header("Prefab umum (boleh dikosongkan saat greybox)")]
     [Tooltip("Pivot prefab sebaiknya di dasar objek (bagian bawah menyentuh lantai).")]
     [SerializeField] private GameObject floorPrefab;
     [SerializeField] private GameObject wallPrefab;
@@ -17,12 +21,14 @@ public class LevelLoader : MonoBehaviour
     [SerializeField] private GameObject playerPrefab;
 
     public GridModel Model { get; private set; }
+    public WasteRuleSet Rules => rules;
     public GameObject PlayerObject { get; private set; }
     public Dictionary<Vector2Int, GameObject> TrashObjects { get; } =
         new Dictionary<Vector2Int, GameObject>();
 
     private Transform boardRoot;
 
+    // Awake, bukan Start: papan harus berdiri sebelum script lain mencarinya.
     private void Awake()
     {
         Build();
@@ -36,7 +42,10 @@ public class LevelLoader : MonoBehaviour
             return;
         }
 
-        // Hapus papan lama (berguna nanti untuk tombol reset / ganti level).
+        if (rules == null)
+            Debug.LogWarning("LevelLoader: Aturan Wilayah belum diisi. " +
+                             "Pengecekan benar/salah tidak akan bekerja.");
+
         if (boardRoot != null) Destroy(boardRoot.gameObject);
         TrashObjects.Clear();
 
@@ -44,7 +53,7 @@ public class LevelLoader : MonoBehaviour
         boardRoot.SetParent(transform, false);
 
         // 1) Otak dibuat dulu...
-        Model = new GridModel(level.layout);
+        Model = new GridModel(level);
 
         // 2) ...lalu tubuh dibangun berdasarkan isi otak.
         for (int x = 0; x < Model.Width; x++)
@@ -68,8 +77,8 @@ public class LevelLoader : MonoBehaviour
                     case TileType.Bin:
                         SpawnFloor(p);
                         Spawn(binPrefab, PrimitiveType.Cube, p,
-                              0.4f, Vector3.one * 0.8f, CategoryColor(cell.BinCategory),
-                              $"Bin {cell.BinCategory}");
+                              0.4f, Vector3.one * 0.8f, cell.BinCategory.color,
+                              $"Tong {cell.BinCategory.displayName}");
                         break;
 
                         // TileType.Void: sengaja tidak dibuat apa-apa.
@@ -79,9 +88,14 @@ public class LevelLoader : MonoBehaviour
 
         foreach (var pair in Model.Trash)
         {
-            TrashObjects[pair.Key] = Spawn(trashPrefab, PrimitiveType.Sphere, pair.Key,
-                                           0.2f, Vector3.one * 0.4f, CategoryColor(pair.Value),
-                                           $"Trash {pair.Value}");
+            WasteItemData item = pair.Value;
+
+            // Prefab milik jenis sampah itu lebih diutamakan daripada prefab umum.
+            GameObject prefab = item.prefab != null ? item.prefab : trashPrefab;
+
+            TrashObjects[pair.Key] = Spawn(prefab, PrimitiveType.Sphere, pair.Key,
+                                           0.2f, Vector3.one * 0.4f, item.fallbackColor,
+                                           item.displayName);
         }
 
         PlayerObject = Spawn(playerPrefab, PrimitiveType.Capsule, Model.PlayerStart,
@@ -89,8 +103,6 @@ public class LevelLoader : MonoBehaviour
     }
 
     // Mengubah koordinat grid (x, y) menjadi posisi dunia 3D (x, 0, z).
-    // Y milik grid menjadi Z milik dunia, karena Y di Unity adalah arah ATAS.
-    // Papan dibuat berpusat di posisi objek LevelLoader agar kamera mudah diarahkan.
     public Vector3 GridToWorld(Vector2Int p)
     {
         var center = new Vector3((Model.Width - 1) * 0.5f, 0f, (Model.Height - 1) * 0.5f);
@@ -101,7 +113,6 @@ public class LevelLoader : MonoBehaviour
 
     private void SpawnFloor(Vector2Int p)
     {
-        // Sedikit lebih kecil dari 1 agar celah antar-kotak terlihat seperti garis grid.
         Spawn(floorPrefab, PrimitiveType.Cube, p,
               -0.05f, new Vector3(0.95f, 0.1f, 0.95f), new Color(0.85f, 0.85f, 0.8f), "Floor");
     }
@@ -119,7 +130,6 @@ public class LevelLoader : MonoBehaviour
         }
         else
         {
-            // Mode greybox: bentuk dasar Unity, cukup untuk menguji mekanik.
             go = GameObject.CreatePrimitive(fallback);
             go.transform.SetParent(boardRoot, false);
             go.transform.localScale = greyboxScale * cellSize;
@@ -131,17 +141,5 @@ public class LevelLoader : MonoBehaviour
         go.transform.position = pos;
         go.name = $"{label} ({p.x},{p.y})";
         return go;
-    }
-
-    // Warna KHUSUS greybox, untuk memudahkan pengembang — BUKAN keputusan visual final.
-    private static Color CategoryColor(WasteCategory c)
-    {
-        switch (c)
-        {
-            case WasteCategory.Organik: return new Color(0.3f, 0.7f, 0.3f);
-            case WasteCategory.Anorganik: return new Color(0.95f, 0.8f, 0.2f);
-            case WasteCategory.B3: return new Color(0.85f, 0.25f, 0.25f);
-            default: return Color.white;
-        }
     }
 }

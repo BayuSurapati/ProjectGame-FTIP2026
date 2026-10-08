@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[CreateAssetMenu(fileName = "Kategori_", menuName = "Pilah Sampah/Kategori Sampah")]
 public class WasteCategoryData : ScriptableObject
 {
     public string displayName = "New Waste Category";

@@ -12,15 +12,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4fd6b2a758363b84ab90053cbf166eb2, type: 3}
   m_Name: Level_1
   m_EditorClassIdentifier: 
-  levelName: Level Baru
+  levelName: Level 1
   layout: '#######
 
-    #P..o.#
+    #P...s#
 
-    #.#...#
+    #####.#
 
-    #..a..#
+    #####.#
 
-    #O...A#
+    #####O#
 
     #######'
+  trashLegend:
+  - symbol: s
+    item: {fileID: 11400000, guid: 4ca3d35bf6358cf49beda435146613ba, type: 2}
+  binLegend:
+  - symbol: O
+    category: {fileID: 11400000, guid: 79cd848855e533448aade68418806eaf, type: 2}

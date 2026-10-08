@@ -1,14 +1,14 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
-[DefaultExecutionOrder(100)]
-public class GameSnapshot : MonoBehaviour
+// "Foto" keadaan game pada satu titik waktu.
+// Berisi SEMUA hal yang bisa berubah saat pemain melangkah.
+// Setiap kali kamu menambah mekanik baru yang menyimpan sesuatu, tambahkan juga di sini.
+public struct GameSnapshot
 {
-    public Vector2Int playerPos;
-    public WasteCategory Held;
+    public Vector2Int PlayerPos;
+    public WasteItemData Held;   // null = tangan kosong
 
-    //Berupa salinan
-    public Dictionary<Vector2Int, WasteCategory> Trash;
+    // WAJIB berupa salinan, bukan alamat daftar aslinya.
+    public Dictionary<Vector2Int, WasteItemData> Trash;
 }

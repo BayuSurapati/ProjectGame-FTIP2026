@@ -1,124 +1,139 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+// Pencatat jalannya satu sesi permainan: riwayat langkah, undo, reset,
+// jumlah langkah & kesalahan, kondisi menang, dan kartu fakta edukasi.
+[DefaultExecutionOrder(100)]
 public class GameSession : MonoBehaviour
 {
-    [SerializeField] private PlayerController player;
+    [SerializeField] private PlayerController playerController;
     [SerializeField] private bool showDebugUI = true;
 
     public int Moves { get; private set; }
     public int Mistakes { get; private set; }
-    public bool isWon { get; private set; }
+    public bool IsWon { get; private set; }
 
-    //Stacking untuk menyimpan snapshot permainan sebelumnya
+    // Stack = tumpukan piring: yang terakhir ditaruh, itu yang pertama diambil.
     private readonly Stack<GameSnapshot> history = new Stack<GameSnapshot>();
     private GameSnapshot initialState;
+    private string lastMessage = "";
 
-    // Start is called before the first frame update
-    void Start()
+    private void Start()
     {
-        if (player == null)
+        if (playerController == null) playerController = FindFirstObjectByType<PlayerController>();
+        if (playerController == null)
         {
-            player = FindFirstObjectByType<PlayerController>();
-        }
-
-        if (player == null)
-        {
-            Debug.LogError("GameSession: PlayerController tidak ditemukan di scene. Pastikan ada GameObject dengan PlayerController.");
+            Debug.LogError("GameSession: PlayerController tidak ditemukan.");
             enabled = false;
             return;
         }
 
-        initialState = player.Capture();
+        initialState = playerController.Capture();
 
-        player.OnBeforeAction += RecordStep;
-        player.OnWrongBin += CountMistake;
-        player.OnActionResolved += CheckWin;
+        playerController.OnBeforeAction += RecordStep;
+        playerController.OnBinResult += HandleBinResult;
+        playerController.OnActionResolved += CheckWin;
     }
 
     private void OnDestroy()
     {
-        if (player == null) return;
-        player.OnBeforeAction -= RecordStep;
-        player.OnWrongBin -= CountMistake;
-        player.OnActionResolved -= CheckWin;
+        if (playerController == null) return;
+        playerController.OnBeforeAction -= RecordStep;
+        playerController.OnBinResult -= HandleBinResult;
+        playerController.OnActionResolved -= CheckWin;
     }
 
-    //-----------------History-----------------
+    // ---------------- Riwayat ----------------
 
     private void RecordStep()
     {
-        history.Push(player.Capture());
+        history.Push(playerController.Capture());
         Moves++;
     }
 
     public void Undo()
     {
-        if (isWon || history.Count == 0) return;
+        if (IsWon || history.Count == 0) return;
 
-        player.ApplySnapshots(history.Pop());
+        playerController.ApplySnapshot(history.Pop());
         Moves = Mathf.Max(0, Moves - 1);
+        lastMessage = "";
+
+        // Mistakes SENGAJA tidak dikurangi.
+        // Undo memperbaiki posisi, tapi tidak menghapus fakta bahwa pemain salah memilah.
     }
 
     public void ResetLevel()
     {
         history.Clear();
-        player.ApplySnapshots(initialState);
+        playerController.ApplySnapshot(initialState);
 
         Moves = 0;
         Mistakes = 0;
-        isWon = false;
-        player.InputLocked = false;
+        IsWon = false;
+        lastMessage = "";
+        playerController.InputLocked = false;
     }
 
-    private void CountMistake() => Mistakes++;
+    // ---------------- Hasil membuang ----------------
 
-    //---------------Win-----------------
+    private void HandleBinResult(bool correct, WasteItemData item, string note)
+    {
+        if (!correct) Mistakes++;
+
+        string head = correct ? "BENAR" : "SALAH";
+        lastMessage = $"{head} — {item.displayName}. {note}";
+        Debug.Log(lastMessage);
+    }
+
+    // ---------------- Menang ----------------
 
     private void CheckWin()
     {
-        if (isWon) return;
-        if(player.HeldTrash != WasteCategory.None) return;
-        if(player.RemainingTrash > 0) return;
+        if (IsWon) return;
+        if (playerController.HeldTrash != null) return;       // masih memegang sampah
+        if (playerController.RemainingTrash > 0) return;      // masih ada sampah di papan
 
-        isWon = true;
-        player.InputLocked = true;
+        IsWon = true;
+        playerController.InputLocked = true;
         Debug.Log($"MENANG! Langkah: {Moves}, Kesalahan: {Mistakes}, Bintang: {Stars}");
     }
 
+    // SEMENTARA: rumus bintang masih kasar, nanti disesuaikan per level.
     public int Stars => Mistakes == 0 ? 3 : (Mistakes == 1 ? 2 : 1);
 
+    // ---------------- Kontrol & tampilan sementara ----------------
 
-    // Update is called once per frame
-    void Update()
+    private void Update()
     {
         Keyboard k = Keyboard.current;
-        if(k == null)
-        {
-            return;
-        }
+        if (k == null) return;
 
         if (k.zKey.wasPressedThisFrame) Undo();
         if (k.rKey.wasPressedThisFrame) ResetLevel();
-
     }
 
+    // SEMENTARA: diganti UI asli nanti.
     private void OnGUI()
     {
-        if(!showDebugUI) return;
-        
-        GUI.Label(new Rect(10,10,500,20), 
-            $"Langkah: {Moves}   Kesalahan: {Mistakes}   Membawa: {player.HeldTrash}   " +
-            $"Sisa sampah: {player.RemainingTrash}");
+        if (!showDebugUI) return;
 
-        if (isWon)
-        {
-            GUI.Label(new Rect(10, 32, 500, 20), $"MENANG — bintang {Stars}");
-        }
+        string held = playerController.HeldTrash != null
+            ? playerController.HeldTrash.displayName
+            : "-";
+
+        GUI.Label(new Rect(10, 10, 600, 20),
+            $"Langkah: {Moves}   Kesalahan: {Mistakes}   Membawa: {held}   " +
+            $"Sisa sampah: {playerController.RemainingTrash}");
+
+        if (IsWon)
+            GUI.Label(new Rect(10, 32, 600, 20), $"MENANG — bintang {Stars}");
 
         if (GUI.Button(new Rect(10, 58, 110, 30), "Undo (Z)")) Undo();
         if (GUI.Button(new Rect(130, 58, 110, 30), "Reset (R)")) ResetLevel();
+
+        if (!string.IsNullOrEmpty(lastMessage))
+            GUI.Label(new Rect(10, 96, 420, 120), lastMessage);
     }
 }

@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
+[Serializable]
 public class WasteRule
 {
     public WasteItemData wasteItem;
@@ -33,7 +35,7 @@ public class WasteRuleSet : ScriptableObject
             {
                 continue;
             }
-            if (!map.ContainsKey(r.wasteItem))
+            if (map.ContainsKey(r.wasteItem))
             {
                 Debug.LogWarning($"{name}: ada dua aturan untuk '{r.wasteItem.displayName}'. Yang pertama dipakai.");
                 continue;
@@ -47,6 +49,26 @@ public class WasteRuleSet : ScriptableObject
         if (item == null) return null;
         if (map == null) Build();
         return map.TryGetValue(item, out WasteRule r) ? r : null;
+    }
+
+    public WasteCategoryData CategoryOf(WasteItemData item)
+    {
+        WasteRule r = Find(item);
+
+        if (r == null)
+        {
+            Debug.LogWarning($"{name}: '{(item != null ? item.displayName : "null")}' belum punya aturan. " +
+                             "Tambahkan di daftar Rules.");
+            return null;
+        }
+
+        return r.wasteCategory;
+    }
+
+    public string NoteFor(WasteItemData item)
+    {
+        WasteRule r = Find(item);
+        return r != null ? r.note : null;
     }
 
 }

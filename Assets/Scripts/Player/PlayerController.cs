@@ -1,30 +1,30 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
+// Penghubung antara input, otak (GridModel), dan tubuh (objek 3D).
+// Alurnya selalu: HITUNG DULU semuanya, BARU animasikan.
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] private LevelLoader loader;
-    [SerializeField] private SwipeInput swipeInput;
+    [SerializeField] private SwipeInput input;
 
-    [Header("Movement")]
-    [Tooltip("Kotak yang dilewati per detik")]
-    [SerializeField] private float moveSpeed = 1f;
-
+    [Header("Gerakan")]
+    [Tooltip("Berapa kotak yang dilewati per detik.")]
+    [SerializeField] private float speed = 6f;
 
     [Header("Aturan")]
-    [Tooltip("Kalau dicentang, player menuju tong sampah yang benar")]
+    [Tooltip("Kalau dicentang, karakter berhenti tepat di kotak sampah yang diambil.")]
     [SerializeField] private bool stopOnPickup = false;
 
-    public event Action OnBeforeAction;
-    public event Action OnActionResolved;
-    public event Action OnWrongBin;
-
+    // Siaran untuk pihak lain (GameSession).
+    public event Action OnBeforeAction;     // SEBELUM keadaan berubah -> waktunya memotret
+    public event Action OnActionResolved;   // SETELAH langkah tuntas -> waktunya cek menang
+    public event Action<bool, WasteItemData, string> OnBinResult;  // benar?, bendanya, fakta
 
     public Vector2Int Position { get; private set; }
-    public WasteCategory HeldTrash { get; private set; } = WasteCategory.None;
+    public WasteItemData HeldTrash { get; private set; }   // null = tangan kosong
     public int RemainingTrash => Model.Trash.Count;
     public bool InputLocked { get; set; }
 
@@ -32,180 +32,176 @@ public class PlayerController : MonoBehaviour
     private Transform player;
     private GridModel Model => loader.Model;
 
-    // Start is called before the first frame update
-    void Start()
+    private void Start()
     {
-        if(loader == null)
+        if (loader == null) loader = FindFirstObjectByType<LevelLoader>();
+        if (input == null) input = FindFirstObjectByType<SwipeInput>();
+
+        if (loader == null || input == null)
         {
-            FindFirstObjectByType<LevelLoader>();
+            Debug.LogError("PlayerController: LevelLoader atau SwipeInput tidak ditemukan.");
+            enabled = false;
+            return;
         }
 
-        if(swipeInput == null)
+        if (loader.Model == null || loader.PlayerObject == null)
         {
-            FindFirstObjectByType<SwipeInput>();
+            Debug.LogError("PlayerController: papan belum dibangun. Cek LevelLoader pakai Awake() " +
+                           "dan kolom Level sudah diisi.");
+            enabled = false;
+            return;
         }
 
         player = loader.PlayerObject.transform;
         Position = Model.PlayerStart;
-
-        swipeInput.OnDirection += HandleDirection;
+        input.OnDirection += HandleDirection;
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-
-    //Destroy event saat tidak digunakan lagi
     private void OnDestroy()
     {
-        if(swipeInput != null)
-        {
-            swipeInput.OnDirection -= HandleDirection;
-        }
+        if (input != null) input.OnDirection -= HandleDirection;
     }
+
+    // ---------------- Gerakan ----------------
 
     private void HandleDirection(Vector2Int dir)
     {
-        Debug.Log($"Arah diterima: {dir}");   // SEMENTARA
-
         if (isMoving || InputLocked) return;
-        
+
+        // --- TAHAP HITUNG ---
         var path = new List<Vector2Int>();
-        Vector2Int currentPos = Position;
-        Vector2Int next = currentPos + dir;
+        Vector2Int current = Position;
+        Vector2Int next = current + dir;
 
         while (Model.IsWalkable(next))
         {
-            
-            currentPos = next;
-            path.Add(currentPos);
+            current = next;
+            path.Add(current);
 
-            //Berhenti kalau memungut sampah
-            if(stopOnPickup && HeldTrash == WasteCategory.None && Model.HasTrash(currentPos))
-            {
+            if (stopOnPickup && HeldTrash == null && Model.HasTrash(current))
                 break;
-            }
-            next = currentPos + dir;
-        }
-        // Kotak yang MENGHENTIKAN luncuran. Bisa tembok, tong, atau luar papan.
-        Vector2Int blocker = currentPos + dir;
-        bool willDispose = Model.GetCell(blocker).Type == TileType.Bin
-                           && HeldTrash != WasteCategory.None;
 
+            next = current + dir;
+        }
+
+        Vector2Int blocker = current + dir;
+        bool willDispose = Model.GetCell(blocker).Type == TileType.Bin && HeldTrash != null;
+
+        // Tidak ada yang berubah sama sekali: jangan catat langkah, jangan buang jatah undo.
         if (path.Count == 0 && !willDispose) return;
 
-        OnBeforeAction?.Invoke();
+        OnBeforeAction?.Invoke();   // potret keadaan SEBELUM apa pun berubah
 
-        if (path.Count == 0)
+        if (path.Count == 0)        // menempel tong, membuang tanpa bergerak
         {
             CheckBin(blocker);
             OnActionResolved?.Invoke();
             return;
         }
 
+        // --- TAHAP TAMPILKAN ---
         StartCoroutine(MoveRoutine(path, blocker));
     }
 
     private IEnumerator MoveRoutine(List<Vector2Int> path, Vector2Int blocker)
     {
         isMoving = true;
-        float durationPerCell = 1f / moveSpeed;
+        float durationPerCell = 1f / speed;
 
-        foreach (Vector2Int cell in path)
+        try
         {
-            Vector3 from = player.position;
-            Vector3 to = loader.GridToWorld(cell);
-            to.y = from.y;
-
-            float t = 0f;
-            while(t < 1f)
+            foreach (Vector2Int cell in path)
             {
-                t += Time.deltaTime / durationPerCell;
-                player.position = Vector3.Lerp(from, to, Mathf.Min(t, 1f));
-                yield return null; // tunggu satu frame
+                Vector3 from = player.position;
+                Vector3 to = loader.GridToWorld(cell);
+                to.y = from.y;
+
+                float t = 0f;
+                while (t < 1f)
+                {
+                    t += Time.deltaTime / durationPerCell;
+                    player.position = Vector3.Lerp(from, to, Mathf.Min(t, 1f));
+                    yield return null;
+                }
+
+                Position = cell;
+                TryPickup(cell);
             }
-            Position = cell;
-            TryPickup(cell);
         }
-        isMoving = false;
+        finally
+        {
+            isMoving = false;   // dijamin jalan, walau coroutine dihentikan di tengah
+        }
+
         CheckBin(blocker);
+        OnActionResolved?.Invoke();
     }
 
     private void TryPickup(Vector2Int cell)
     {
-        if(HeldTrash != WasteCategory.None) return;
-        if(!Model.HasTrash(cell)) return;
+        if (HeldTrash != null) return;
+        if (!Model.HasTrash(cell)) return;
 
         HeldTrash = Model.GetTrash(cell);
         Model.RemoveTrash(cell);
 
-        if(loader.TrashObjects.TryGetValue(cell, out GameObject go))
-        {
-            Destroy(go);
-            loader.TrashObjects.Remove(cell);
-        }
-
-        Destroy(go);
-        Debug.Log($"Mengambil Sampah: {HeldTrash}");
+        // DISEMBUNYIKAN, bukan dihancurkan, supaya bisa dimunculkan lagi saat undo.
+        if (loader.TrashObjects.TryGetValue(cell, out GameObject go))
+            go.SetActive(false);
     }
 
-    //SEMENTARA: Hasil di cetak di Konsol
-    //Nanti bisa dikasih efek visual, skor, dan kartu fakta edukasi
     private void CheckBin(Vector2Int binPos)
     {
         Cell cell = Model.GetCell(binPos);
-        if(cell.Type != TileType.Bin) return;
+        if (cell.Type != TileType.Bin) return;
+        if (HeldTrash == null) return;
 
-        if(HeldTrash == WasteCategory.None)
+        WasteRuleSet rules = loader.Rules;
+        if (rules == null)
         {
-            Debug.Log("Tidak ada sampah yang dipegang");
+            Debug.LogWarning("PlayerController: Aturan Wilayah kosong, tidak bisa menilai benar/salah.");
             return;
         }
-        if(cell.BinCategory == HeldTrash)
-        {
-            Debug.Log($"Sampah {HeldTrash} dibuang ke tong yang benar!");
-            HeldTrash = WasteCategory.None;
-        }
-        else
-        {
-            Debug.Log($"Sampah {HeldTrash} dibuang ke tong yang salah! Seharusnya {cell.BinCategory}");
-        }
+
+        // Benar atau salah ditentukan oleh ATURAN WILAYAH, bukan oleh data sampahnya.
+        WasteCategoryData shouldBe = rules.CategoryOf(HeldTrash);
+        bool correct = shouldBe != null && shouldBe == cell.BinCategory;
+
+        WasteItemData item = HeldTrash;          // disimpan dulu untuk dikirim lewat event
+        string note = rules.NoteFor(item);
+
+        if (correct) HeldTrash = null;           // salah = sampah ditolak, tetap di tangan
+
+        OnBinResult?.Invoke(correct, item, note);
     }
+
+    // ---------------- Untuk sistem undo ----------------
 
     public GameSnapshot Capture()
     {
         return new GameSnapshot
         {
-            playerPos = Position,
+            PlayerPos = Position,
             Held = HeldTrash,
             Trash = Model.CopyTrash()   // fotokopi, bukan alamat
         };
     }
 
-    public void ApplySnapshots(GameSnapshot snap)
+    public void ApplySnapshot(GameSnapshot snap)
     {
         StopAllCoroutines();   // batalkan animasi yang mungkin sedang berjalan
         isMoving = false;
 
-        Position = snap.playerPos;
+        Position = snap.PlayerPos;
         HeldTrash = snap.Held;
         Model.RestoreTrash(snap.Trash);
 
-        // Samakan tubuh dengan otak: sampah yang ada di daftar ditampilkan, sisanya disembunyikan.
+        // Samakan tubuh dengan otak.
         foreach (var pair in loader.TrashObjects)
             pair.Value.SetActive(Model.HasTrash(pair.Key));
 
-        Vector3 pos = loader.GridToWorld(snap.playerPos);
+        Vector3 pos = loader.GridToWorld(snap.PlayerPos);
         pos.y = player.position.y;
         player.position = pos;   // undo berpindah seketika, tanpa animasi
-    }
-
-
-    // SEMENTARA: hapus setelah testing selesai.
-    private void OnGUI()
-    {
-        //GUI.Label(new Rect(10, 10, 400, 20), $"Posisi: {Position}   Membawa: {HeldTrash}");
     }
 }

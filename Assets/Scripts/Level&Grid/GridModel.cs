@@ -3,7 +3,6 @@ using UnityEngine;
 
 // "OTAK" papan.
 // Class C# biasa (bukan MonoBehaviour): tidak butuh Scene, tidak punya tampilan.
-// Tugasnya hanya menyimpan isi grid dan menjawab pertanyaan tentang grid.
 public class GridModel
 {
     public int Width { get; private set; }
@@ -12,23 +11,24 @@ public class GridModel
 
     // PAPAN (statis) dan BIDAK (dinamis) disimpan terpisah.
     private Cell[,] cells;
-    private readonly Dictionary<Vector2Int, WasteCategory> trash =
-        new Dictionary<Vector2Int, WasteCategory>();
+    private readonly Dictionary<Vector2Int, WasteItemData> trash =
+        new Dictionary<Vector2Int, WasteItemData>();
 
-    public IReadOnlyDictionary<Vector2Int, WasteCategory> Trash => trash;
+    public IReadOnlyDictionary<Vector2Int, WasteItemData> Trash => trash;
 
-    public GridModel(string layout)
+    // Sekarang menerima LevelData, bukan string, karena legenda simbol ada di sana.
+    public GridModel(LevelData level)
     {
-        Parse(layout);
+        Parse(level);
     }
 
     // ---------------- Membaca teks layout ----------------
 
-    private void Parse(string layout)
+    private void Parse(LevelData level)
     {
         // Rapikan akhir baris gaya Windows (\r\n),
         // lalu buang baris kosong HANYA di awal/akhir teks.
-        string[] rows = layout.Replace("\r", "").Trim('\n').Split('\n');
+        string[] rows = level.layout.Replace("\r", "").Trim('\n').Split('\n');
 
         Height = rows.Length;
         Width = 0;
@@ -41,12 +41,10 @@ public class GridModel
         for (int r = 0; r < Height; r++)
         {
             // Teks dibaca dari ATAS ke bawah, tapi di grid kita y = 0 ada di BAWAH.
-            // Tanpa pembalikan ini, level tampil terbalik atas-bawah.
             int y = Height - 1 - r;
 
             for (int x = 0; x < Width; x++)
             {
-                // Baris yang lebih pendek dianggap diisi spasi (kosong).
                 char c = x < rows[r].Length ? rows[r][x] : ' ';
                 var pos = new Vector2Int(x, y);
 
@@ -63,40 +61,32 @@ public class GridModel
                         break;
 
                     default:
-                        WasteCategory cat = CharToCategory(c);
-                        if (cat == WasteCategory.None)
+                        // Tong dicek lebih dulu, lalu sampah.
+                        WasteCategoryData bin = level.FindBin(c);
+                        if (bin != null)
                         {
-                            Debug.LogWarning($"Simbol tidak dikenal '{c}' di {pos}. Dianggap lantai.");
-                            cells[x, y] = new Cell(TileType.Floor);
+                            cells[x, y] = new Cell(TileType.Bin, bin);
+                            break;
                         }
-                        else if (char.IsUpper(c))
+
+                        WasteItemData item = level.FindTrash(c);
+                        if (item != null)
                         {
-                            cells[x, y] = new Cell(TileType.Bin, cat); // huruf BESAR = tong
+                            cells[x, y] = new Cell(TileType.Floor); // sampah berdiri di atas lantai
+                            trash[pos] = item;
+                            break;
                         }
-                        else
-                        {
-                            cells[x, y] = new Cell(TileType.Floor);    // sampah berdiri di atas lantai
-                            trash[pos] = cat;                          // huruf kecil = sampah
-                        }
+
+                        Debug.LogWarning($"Simbol '{c}' di {pos} tidak ada di legenda level " +
+                                         $"'{level.name}'. Kotaknya dianggap lantai.");
+                        cells[x, y] = new Cell(TileType.Floor);
                         break;
                 }
             }
         }
 
-        // Validasi: kesalahan kecil di layout lebih baik ketahuan sekarang.
         if (playerCount != 1)
             Debug.LogError($"Level harus punya tepat 1 pemain 'P', ditemukan {playerCount}.");
-    }
-
-    private static WasteCategory CharToCategory(char c)
-    {
-        switch (char.ToLower(c))
-        {
-            case 'o': return WasteCategory.Organik;
-            case 'a': return WasteCategory.Anorganik;
-            case 'b': return WasteCategory.B3;
-            default: return WasteCategory.None;
-        }
     }
 
     // ---------------- Pertanyaan tentang papan ----------------
@@ -108,24 +98,24 @@ public class GridModel
     public Cell GetCell(Vector2Int p) =>
         IsInside(p) ? cells[p.x, p.y] : new Cell(TileType.Void);
 
-    // Hanya melihat "tanah". Aturan sampah (menghalangi atau diambil)
-    // sengaja BELUM dimasukkan — itu keputusan desain untuk langkah meluncur.
     public bool IsWalkable(Vector2Int p) => GetCell(p).Type == TileType.Floor;
 
     public bool HasTrash(Vector2Int p) => trash.ContainsKey(p);
 
-    public WasteCategory GetTrash(Vector2Int p) =>
-        trash.TryGetValue(p, out var cat) ? cat : WasteCategory.None;
+    // ---------------- Daftar sampah ----------------
+
+    public WasteItemData GetTrash(Vector2Int p) =>
+        trash.TryGetValue(p, out WasteItemData item) ? item : null;
 
     public void RemoveTrash(Vector2Int p) => trash.Remove(p);
 
-    public Dictionary<Vector2Int, WasteCategory> CopyTrash() =>
-        new Dictionary<Vector2Int, WasteCategory>(trash);
+    // Fotokopi daftar sampah, bukan sekadar alamatnya.
+    public Dictionary<Vector2Int, WasteItemData> CopyTrash() =>
+        new Dictionary<Vector2Int, WasteItemData>(trash);
 
-    public void RestoreTrash(Dictionary<Vector2Int, WasteCategory> snapshot)
+    public void RestoreTrash(Dictionary<Vector2Int, WasteItemData> snapshot)
     {
         trash.Clear();
-        foreach (var pair in snapshot)
-            trash[pair.Key] = pair.Value;
+        foreach (var pair in snapshot) trash[pair.Key] = pair.Value;
     }
 }

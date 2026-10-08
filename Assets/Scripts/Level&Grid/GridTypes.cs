@@ -8,22 +8,15 @@ public enum TileType
     Bin     // tong sampah: penghalang yang punya kategori
 }
 
-// Kategori sampah. SEMENTARA — nanti disesuaikan dengan aturan Taiwan & Indonesia.
-public enum WasteCategory
-{
-    None,
-    Organik,
-    Anorganik,
-    B3
-}
-
 // Satu kotak di papan.
+// Catatan: enum WasteCategory sudah DIHAPUS. Kategori kini berupa aset
+// (WasteCategoryData), supaya aturan tiap wilayah bisa berbeda tanpa mengubah kode.
 public struct Cell
 {
     public TileType Type;
-    public WasteCategory BinCategory; // hanya dipakai kalau Type == Bin
+    public WasteCategoryData BinCategory; // hanya diisi kalau Type == Bin
 
-    public Cell(TileType type, WasteCategory binCategory = WasteCategory.None)
+    public Cell(TileType type, WasteCategoryData binCategory = null)
     {
         Type = type;
         BinCategory = binCategory;

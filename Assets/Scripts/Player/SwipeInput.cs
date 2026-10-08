@@ -66,7 +66,7 @@ public class SwipeInput : MonoBehaviour
     private void ReadKeyboard()
     {
         Keyboard k = Keyboard.current;
-        if (k == null) { Debug.LogError("Keyboard.current NULL"); return; }   // SEMENTARA
+        if (k == null) return;  // SEMENTARA
 
         if (k.upArrowKey.wasPressedThisFrame || k.wKey.wasPressedThisFrame)
             OnDirection?.Invoke(Vector2Int.up);
