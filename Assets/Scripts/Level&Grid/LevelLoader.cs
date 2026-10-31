@@ -3,7 +3,7 @@ using UnityEngine;
 
 // "TUBUH" papan: membaca LevelData, membuat GridModel,
 // lalu membangun tampilan 3D berdasarkan isi GridModel.
-public class LevelLoader : MonoBehaviour
+public partial class LevelLoader : MonoBehaviour
 {
     [SerializeField] private LevelData level;
 
@@ -103,9 +103,14 @@ public class LevelLoader : MonoBehaviour
     }
 
     // Mengubah koordinat grid (x, y) menjadi posisi dunia 3D (x, 0, z).
-    public Vector3 GridToWorld(Vector2Int p)
+    public Vector3 GridToWorld(Vector2Int p) => CellToWorld(p, Model);
+
+
+    //Dipisah supaya preview bisa pake model sementara
+
+    public Vector3 CellToWorld(Vector2Int p, GridModel m)
     {
-        var center = new Vector3((Model.Width - 1) * 0.5f, 0f, (Model.Height - 1) * 0.5f);
+        var center = new Vector3((m.Width - 1) * 0.5f, 0f, (m.Height - 1) * 0.5f);
         return transform.position + (new Vector3(p.x, 0f, p.y) - center) * cellSize;
     }
 

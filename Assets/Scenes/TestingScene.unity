@@ -347,7 +347,9 @@ MonoBehaviour:
   wallPrefab: {fileID: 0}
   binPrefab: {fileID: 0}
   trashPrefab: {fileID: 0}
-  playerPrefab: {fileID: 0}
+  playerPrefab: {fileID: 4881938865782007958, guid: 9c4041e3d3eeab449b893ef4a066100b, type: 3}
+  drawPreview: 1
+  showPreviewLabel: 1
 --- !u!4 &1985265607
 Transform:
   m_ObjectHideFlags: 0
@@ -379,6 +381,8 @@ MonoBehaviour:
   input: {fileID: 1985265609}
   speed: 6
   stopOnPickup: 0
+  startFacing: 3
+  turnSpeed: 0
 --- !u!114 &1985265609
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UIElements.Experimental;
 
 // Penghubung antara input, otak (GridModel), dan tubuh (objek 3D).
 // Alurnya selalu: HITUNG DULU semuanya, BARU animasikan.
@@ -18,6 +19,14 @@ public class PlayerController : MonoBehaviour
     [Tooltip("Kalau dicentang, karakter berhenti tepat di kotak sampah yang diambil.")]
     [SerializeField] private bool stopOnPickup = false;
 
+    [Header("Arah hadap")]
+    [Tooltip("Arah hadap saat level dimulai. (0,-1) berarti menghadap kamera.")]
+    [SerializeField] private GridDirection startFacing = GridDirection.Down;
+
+    [Tooltip("Derajat per detik. 0 = langsung menghadap tanpa animasi berputar. " +
+             "Kalau diisi, putaran berjalan BERSAMAAN dengan luncuran, bukan sebelumnya.")]
+    [SerializeField] private float turnSpeed = 0f;
+
     // Siaran untuk pihak lain (GameSession).
     public event Action OnBeforeAction;     // SEBELUM keadaan berubah -> waktunya memotret
     public event Action OnActionResolved;   // SETELAH langkah tuntas -> waktunya cek menang
@@ -25,6 +34,7 @@ public class PlayerController : MonoBehaviour
 
     public Vector2Int Position { get; private set; }
     public WasteItemData HeldTrash { get; private set; }   // null = tangan kosong
+    public Vector2Int Facing { get; private set; }
     public int RemainingTrash => Model.Trash.Count;
     public bool InputLocked { get; set; }
 
@@ -54,6 +64,8 @@ public class PlayerController : MonoBehaviour
 
         player = loader.PlayerObject.transform;
         Position = Model.PlayerStart;
+        Facing = startFacing.ToVector();
+        player.rotation = FacingRotation(Facing);
         input.OnDirection += HandleDirection;
     }
 
@@ -91,6 +103,10 @@ public class PlayerController : MonoBehaviour
         if (path.Count == 0 && !willDispose) return;
 
         OnBeforeAction?.Invoke();   // potret keadaan SEBELUM apa pun berubah
+
+        // Hadap diubah SETELAH memotret, supaya undo bisa mengembalikan hadap yang lama.
+        Facing = dir;
+        if (turnSpeed <= 0f) player.rotation = FacingRotation(dir);
 
         if (path.Count == 0)        // menempel tong, membuang tanpa bergerak
         {
@@ -182,6 +198,7 @@ public class PlayerController : MonoBehaviour
         return new GameSnapshot
         {
             PlayerPos = Position,
+            Facing = this.Facing,
             Held = HeldTrash,
             Trash = Model.CopyTrash()   // fotokopi, bukan alamat
         };
@@ -194,6 +211,7 @@ public class PlayerController : MonoBehaviour
 
         Position = snap.PlayerPos;
         HeldTrash = snap.Held;
+        Facing = snap.Facing;
         Model.RestoreTrash(snap.Trash);
 
         // Samakan tubuh dengan otak.
@@ -202,6 +220,16 @@ public class PlayerController : MonoBehaviour
 
         Vector3 pos = loader.GridToWorld(snap.PlayerPos);
         pos.y = player.position.y;
-        player.position = pos;   // undo berpindah seketika, tanpa animasi
+        player.position = pos;// undo berpindah seketika, tanpa animasi
+        player.rotation = FacingRotation(Facing);
+    }
+
+    // Arah grid (x, y) menjadi arah dunia (x, 0, z), lalu menjadi rotasi.
+    // LookRotation mengarahkan sumbu +Z (forward) objek ke arah itu, jadi
+    // prefab-nya harus dibuat menghadap +Z agar hasilnya benar.
+    private static Quaternion FacingRotation(Vector2Int dir)
+    {
+        if (dir == Vector2Int.zero) return Quaternion.identity;
+        return Quaternion.LookRotation(new Vector3(dir.x, 0f, dir.y), Vector3.up);
     }
 }
