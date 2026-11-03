@@ -430,6 +430,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5145541453051381344}
   - component: {fileID: 2787170776323653054}
+  - component: {fileID: 8156849473701868160}
   m_Layer: 0
   m_Name: Visual
   m_TagString: Untagged
@@ -488,6 +489,19 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &8156849473701868160
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2151051702974031958}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c18da9aa1c0c9242a4391fddfad44c9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  logEvents: 1
 --- !u!1 &2488041337190567202
 GameObject:
   m_ObjectHideFlags: 0
@@ -1011,6 +1025,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3821800639893307962}
+  - component: {fileID: 7273589740301023052}
+  - component: {fileID: 5928169527059250173}
   m_Layer: 0
   m_Name: Budi_Characters Design_Anim
   m_TagString: Untagged
@@ -1034,6 +1050,48 @@ Transform:
   - {fileID: 5145541453051381344}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7273589740301023052
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4881938865782007958}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67f20020f31e60646b5dd9437380a700, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animator: {fileID: 2787170776323653054}
+  playerController: {fileID: 0}
+  isMovingParam: IsMoving
+  isCarryingParam: IsCarrying
+  disposeParam: Dispose
+  rejectParam: Reject
+--- !u!114 &5928169527059250173
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4881938865782007958}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c254a038bb76a5c448abe647fd6a357b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  handSlot: {fileID: 2944850309250433394}
+  playerController: {fileID: 0}
+  loader: {fileID: 0}
+  heldScale: 3
+  useAnimationEvent: 1
+  releaseEventId: release
+  releaseTimeout: 0.9
+  throwDelay: 0.2
+  throwDuration: 0.3
+  arcHeight: 1.1
+  binMouthHeight: 0.8
+  spinSpeed: 320
 --- !u!1 &5109672971743972706
 GameObject:
   m_ObjectHideFlags: 0
@@ -1095,6 +1153,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 9049189130423187436}
+  - {fileID: 2944850309250433394}
   m_Father: {fileID: 6397764186203682549}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5662409018762778245
@@ -1323,6 +1382,37 @@ SkinnedMeshRenderer:
     m_Center: {x: 0.061082363, y: 2.090813, z: -0.23247105}
     m_Extent: {x: 0.6818602, y: 0.35735345, z: 0.9012305}
   m_DirtyAABB: 0
+--- !u!1 &6086866155701973693
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2944850309250433394}
+  m_Layer: 0
+  m_Name: HandSlot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2944850309250433394
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6086866155701973693}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.521, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5594797101467917913}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6226987512039626364
 GameObject:
   m_ObjectHideFlags: 0

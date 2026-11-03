@@ -396,7 +396,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   swipeThreshold: 0.04
-  useKeyboard: 0
+  useKeyboard: 1
 --- !u!114 &1985265610
 MonoBehaviour:
   m_ObjectHideFlags: 0

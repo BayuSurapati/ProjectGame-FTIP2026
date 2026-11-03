@@ -31,12 +31,14 @@ public class PlayerController : MonoBehaviour
     public event Action OnBeforeAction;     // SEBELUM keadaan berubah -> waktunya memotret
     public event Action OnActionResolved;   // SETELAH langkah tuntas -> waktunya cek menang
     public event Action<bool, WasteItemData, string> OnBinResult;  // benar?, bendanya, fakta
+    public event Action OnStateRestored;   // undo/redo selesai, waktunya sinkronisasi tampilan
 
     public Vector2Int Position { get; private set; }
     public WasteItemData HeldTrash { get; private set; }   // null = tangan kosong
     public Vector2Int Facing { get; private set; }
     public int RemainingTrash => Model.Trash.Count;
     public bool InputLocked { get; set; }
+    public bool IsMoving => isMoving;
 
     private bool isMoving;
     private Transform player;
